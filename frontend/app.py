@@ -6,16 +6,27 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-BACKEND_URL = "http://backend:8000"  # или http://localhost:8000 если локально
+BACKEND_URL = "http://0.0.0.0:8080"
+
+print("Starting app...")
+log_filename = "app.log"
 
 # Логирование с ротацией
 if not os.path.exists("logs"):
     os.makedirs("logs")
-log_handler = RotatingFileHandler("logs/streamlit.log", maxBytes=1_000_000, backupCount=5)
+try:
+    with open(f"logs/{log_filename}", 'x') as f:
+        f.write("Streamlit app log file.\n")
+    print(f"{log_filename} created.")
+except FileExistsError:
+    print(f"{log_filename} already exists.")
+log_handler = RotatingFileHandler("logs/app.log", maxBytes=1_000_000, backupCount=5)
 log_handler.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 logger.addHandler(log_handler)
 logger.setLevel(logging.INFO)
+
+print("App started.")
 
 st.set_page_config(page_title="ML Model Manager", layout="wide")
 

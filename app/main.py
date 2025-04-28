@@ -8,11 +8,23 @@ from typing import Dict
 from time import sleep
 import multiprocessing
 import uuid
+import uvicorn
+import os
 
 app = FastAPI(title="ML Model Management API")
+log_filename = "server.log"
 
 # Логирование с ротацией
-log_handler = RotatingFileHandler("app/logs/server.log", maxBytes=1000000, backupCount=5)
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+try:
+    with open(f"logs/{log_filename}", 'x') as f:
+        f.write("FastAPI backend log file.\n")
+    print(f"{log_filename} created.")
+except FileExistsError:
+    print(f"{log_filename} already exists.")
+# Логирование с ротацией
+log_handler = RotatingFileHandler("logs/server.log", maxBytes=1000000, backupCount=5)
 log_handler.setLevel(logging.INFO)
 formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
 log_handler.setFormatter(formatter)
@@ -109,3 +121,8 @@ def retrain(request: RetrainRequest):
     # Имитация дообучения
     logger.info(f"Retraining model {ACTIVE_MODEL_ID}")
     return RetrainResponse(status="success", message="Model retrained successfully.")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    logger.info("Server started.")
+    print("Server started.")

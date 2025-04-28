@@ -1,5 +1,5 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field, Annotated
+from typing import List, Optional, Annotated
+from pydantic import BaseModel, Field
 
 class ModelInfo(BaseModel):
     id: Annotated[str, Field(description="Model ID")]
