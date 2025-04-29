@@ -19,6 +19,10 @@ import xgboost as xgb
 import matplotlib.pyplot as plt
 import io
 import base64
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
+import json
 
 app = FastAPI(title="ML Model Management API")
 
@@ -26,6 +30,7 @@ app = FastAPI(title="ML Model Management API")
 os.makedirs("logs", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 os.makedirs("plots", exist_ok=True)
+os.makedirs("plotly_data", exist_ok=True)
 
 print("Starting app...")
 log_filename = "server.log"
@@ -210,25 +215,41 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                 # Get evaluation results
                 evals_result = model.evals_result()
 
-                # Create learning curve plot
-                plt.figure(figsize=(10, 6))
-                plt.plot(evals_result['validation_0'][chosen_metric], label='train')
-                plt.plot(evals_result['validation_1'][chosen_metric], label='validation')
-                plt.xlabel('Iterations')
-                plt.ylabel('Log Loss')
-                plt.title('XGBoost Learning Curve')
-                plt.legend()
+                # Create learning curve plot with plotly
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    y=evals_result['validation_0'][chosen_metric],
+                    mode='lines',
+                    name='train'
+                ))
+                fig.add_trace(go.Scatter(
+                    y=evals_result['validation_1'][chosen_metric],
+                    mode='lines',
+                    name='validation'
+                ))
+                fig.update_layout(
+                    title='XGBoost Learning Curve',
+                    xaxis_title='Iterations',
+                    yaxis_title='Log Loss',
+                    width=800,
+                    height=500
+                )
 
-                # Save plot
+                # Save plot as PNG for backward compatibility
                 plot_path = f"plots/{model_id}.png"
-                plt.savefig(plot_path)
-                plt.close()
+                fig.write_image(plot_path)
+
+                # Save plotly figure as JSON
+                plotly_path = f"plotly_data/{model_id}.json"
+                with open(plotly_path, 'w') as f:
+                    f.write(json.dumps(fig.to_dict()))
 
                 metrics = {
                     "train_loss": evals_result['validation_0'][chosen_metric][-1],
                     "val_loss": evals_result['validation_1'][chosen_metric][-1],
                     "iterations": len(evals_result['validation_0'][chosen_metric]),
-                    "plot_path": plot_path
+                    "plot_path": plot_path,
+                    "plotly_path": plotly_path
                 }
 
             elif model_type == "randomforest":
@@ -245,25 +266,42 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                 train_score = model.score(X_train, y_train)
                 val_score = model.score(X_val, y_val)
 
-                # Create feature importance plot
-                plt.figure(figsize=(10, 6))
+                # Create feature importance plot with plotly
                 importances = model.feature_importances_
                 indices = np.argsort(importances)[::-1]
-                plt.bar(range(X.shape[1]), importances[indices])
-                plt.xticks(range(X.shape[1]), [X.columns[i] for i in indices], rotation=90)
-                plt.xlabel('Features')
-                plt.ylabel('Importance')
-                plt.title('Random Forest Feature Importance')
+                feature_names = [X.columns[i] for i in indices]
 
-                # Save plot
+                fig = px.bar(
+                    x=range(X.shape[1]),
+                    y=importances[indices],
+                    labels={'x': 'Features', 'y': 'Importance'},
+                    title='Random Forest Feature Importance'
+                )
+                fig.update_layout(
+                    xaxis=dict(
+                        tickmode='array',
+                        tickvals=list(range(X.shape[1])),
+                        ticktext=feature_names,
+                        tickangle=90
+                    ),
+                    width=800,
+                    height=500
+                )
+
+                # Save plot as PNG for backward compatibility
                 plot_path = f"plots/{model_id}.png"
-                plt.savefig(plot_path)
-                plt.close()
+                fig.write_image(plot_path)
+
+                # Save plotly figure as JSON
+                plotly_path = f"plotly_data/{model_id}.json"
+                with open(plotly_path, 'w') as f:
+                    f.write(json.dumps(fig.to_dict()))
 
                 metrics = {
                     "train_accuracy": train_score,
                     "val_accuracy": val_score,
-                    "plot_path": plot_path
+                    "plot_path": plot_path,
+                    "plotly_path": plotly_path
                 }
 
             # Save model
@@ -379,15 +417,15 @@ async def get_plot(plot_name: str):
         raise HTTPException(status_code=404, detail="Plot not found")
 
 
-# Бонус: дообучение
-@app.post("/retrain", response_model=RetrainResponse)
-def retrain(request: RetrainRequest):
-    if ACTIVE_MODEL_ID is None:
-        raise HTTPException(status_code=404, detail="No active model")
-
-    # Implementation would be similar to fit but would use existing model as starting point
-    logger.info(f"Retraining model {ACTIVE_MODEL_ID}")
-    return RetrainResponse(status="success", message="Model retrained successfully.")
+@app.get("/plotly_plots/{model_id}")
+async def get_plotly_plot(model_id: str):
+    plotly_path = f"plotly_data/{model_id}.json"
+    if os.path.exists(plotly_path):
+        with open(plotly_path, 'r') as f:
+            plotly_data = json.load(f)
+        return plotly_data
+    else:
+        raise HTTPException(status_code=404, detail="Plotly plot not found")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
+import plotly.graph_objects as go
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -233,14 +234,49 @@ if models_resp.ok:
 
             # Display the plot if available
             if "metrics" in selected_model and selected_model["metrics"] and "plot_path" in selected_model["metrics"]:
-                plot_path = selected_model["metrics"]["plot_path"]
-                # Request the image from the backend
-                plot_resp = requests.get(f"{BACKEND_URL}/plots/{os.path.basename(plot_path)}")
-                if plot_resp.ok:
-                    # Display the image
-                    st.image(plot_resp.content, caption=f"{selected_model_name} Learning Curve")
-                else:
-                    st.warning("Plot image not available")
+                st.subheader("Model Visualization")
+
+                # Try to get interactive Plotly plot
+                try:
+                    plotly_resp = requests.get(f"{BACKEND_URL}/plotly_plots/{selected_model['id']}")
+                    if plotly_resp.ok:
+                        # Display interactive Plotly plot
+                        fig_data = plotly_resp.json()
+
+                        # Create a new figure from the simplified data
+                        if 'data' in fig_data:
+                            # Create figure from data and layout
+                            fig = go.Figure(data=fig_data['data'], layout=fig_data.get('layout', {}))
+                        else:
+                            # Fallback for older format
+                            fig = go.Figure(fig_data)
+
+                        # Set a reasonable size to prevent performance issues
+                        fig.update_layout(
+                            width=800,
+                            height=500,
+                            autosize=True
+                        )
+
+                        # Add timeout to prevent hanging
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        # Fall back to static image if Plotly data not available
+                        plot_path = selected_model["metrics"]["plot_path"]
+                        plot_resp = requests.get(f"{BACKEND_URL}/plots/{os.path.basename(plot_path)}")
+                        if plot_resp.ok:
+                            st.image(plot_resp.content, caption=f"{selected_model_name} Visualization")
+                        else:
+                            st.warning("Plot image not available")
+                except Exception as e:
+                    # Fall back to static image if any error occurs
+                    st.warning(f"Could not load interactive plot: {str(e)}")
+                    plot_path = selected_model["metrics"]["plot_path"]
+                    plot_resp = requests.get(f"{BACKEND_URL}/plots/{os.path.basename(plot_path)}")
+                    if plot_resp.ok:
+                        st.image(plot_resp.content, caption=f"{selected_model_name} Visualization")
+                    else:
+                        st.warning("Plot image not available")
 
         # If no real metrics, show demo learning curve
         else:
