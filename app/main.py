@@ -271,12 +271,24 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                 indices = np.argsort(importances)[::-1]
                 feature_names = [X.columns[i] for i in indices]
 
-                fig = px.bar(
-                    x=range(X.shape[1]),
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=list(range(X.shape[1])),
                     y=importances[indices],
-                    labels={'x': 'Features', 'y': 'Importance'},
-                    title='Random Forest Feature Importance'
+                    name='Feature Importance'
+                ))
+                fig.update_layout(
+                    title='Random Forest Feature Importance',
+                    xaxis_title='Features',
+                    yaxis_title='Importance',
+                    xaxis=dict(
+                        tickmode='array',
+                        tickvals=list(range(X.shape[1])),
+                        ticktext=feature_names,
+                        tickangle=90
+                    )
                 )
+
                 fig.update_layout(
                     xaxis=dict(
                         tickmode='array',
