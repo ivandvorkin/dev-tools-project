@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import *
 from typing import Dict, List, Optional
 from time import sleep
-import multiprocessing
 import uuid
 import uvicorn
 import pandas as pd
@@ -16,12 +15,7 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 import xgboost as xgb
-import matplotlib.pyplot as plt
-import io
-import base64
 import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import json
 
 app = FastAPI(title="ML Model Management API")

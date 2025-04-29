@@ -7,10 +7,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 import numpy as np
-import io
-import base64
-from PIL import Image
-import csv
 
 BACKEND_URL = "http://0.0.0.0:8080"
 

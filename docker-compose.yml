@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./datasets:/app/datasets
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./plots:/app/plots
+      - ./plotly_data:/app/plotly_data
+    networks:
+      - ml-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    environment:
+      - BACKEND_URL=http://backend:8080
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge
