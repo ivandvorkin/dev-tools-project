@@ -162,7 +162,7 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
 
         # Load data if provided
         if data_path and os.path.exists(data_path):
-            df = pd.read_csv(data_path, sep=";")
+            df = pd.read_csv(data_path, sep=None, engine='python')
 
             # Assume last column is target
             X = df.iloc[:, :-1]

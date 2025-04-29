@@ -49,7 +49,7 @@ dataset_path = None
 
 if uploaded_file:
     # Save locally for preview
-    df = pd.read_csv(uploaded_file, sep=";")
+    df = pd.read_csv(uploaded_file, sep=None, engine='python')
     st.success("Dataset loaded!")
     st.dataframe(df.head())
 
