@@ -44,15 +44,15 @@ uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
 dataset_path = None
 
 if uploaded_file:
-    # Save locally for preview
+    # Сохраняем локально для предпросмотра
     df = pd.read_csv(uploaded_file, sep=None, engine='python')
     st.success("Dataset loaded!")
     st.dataframe(df.head())
 
-    # Reset file position to the beginning
+    # Сбрасываем позицию "курсора" в файле в начало
     uploaded_file.seek(0)
 
-    # Upload to backend
+    # Загружаем на бэкенд
     files = {"file": uploaded_file}
     response = requests.post(f"{BACKEND_URL}/upload_dataset", files=files)
     if response.ok:
@@ -77,7 +77,7 @@ if uploaded_file:
     fig = px.histogram(df, x=col)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Correlation matrix
+    # Корреляционная матрица
     if len(df.select_dtypes(include="number").columns) > 1:
         st.subheader("Correlation Matrix")
         corr = df.select_dtypes(include="number").corr()
@@ -89,13 +89,13 @@ if uploaded_file:
 # --- 3. Создание модели и выбор гиперпараметров ---
 st.header("3. Create and train a model")
 
-# Get available models
+# Получаем доступные модели
 models_resp = requests.get(f"{BACKEND_URL}/models")
 models = []
 if models_resp.ok:
     models = models_resp.json()
 
-# Model creation section
+# Секция создания модели
 with st.expander("Create New Model", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -115,29 +115,29 @@ with st.expander("Create New Model", expanded=True):
         resp = requests.post(f"{BACKEND_URL}/create_model", json=payload)
         if resp.ok:
             st.success(f"Model created: {resp.json()['message']}")
-            # Refresh models list
+            # Обновляем список моделей
             models_resp = requests.get(f"{BACKEND_URL}/models")
             if models_resp.ok:
                 models = models_resp.json()
         else:
             st.error("Failed to create model")
 
-# Model selection and training
+# Выбор и обучение модели
 if models:
     st.subheader("Select and Train Model")
 
-    # Select model to train
+    # Выбираем модель для обучения
     model_options = {m["name"]: m for m in models}
     selected_model_name = st.selectbox("Select model to train", list(model_options.keys()))
     selected_model = model_options[selected_model_name]
 
-    # Set as active if not already
+    # Устанавливаем как активную, если еще не активна
     if not selected_model["is_active"]:
         if st.button("Set as Active Model"):
             resp = requests.post(f"{BACKEND_URL}/set", json={"id": selected_model["id"]})
             if resp.ok:
                 st.success("Model set as active")
-                # Refresh models
+                # Обновлеяем модели
                 models_resp = requests.get(f"{BACKEND_URL}/models")
                 if models_resp.ok:
                     models = models_resp.json()
@@ -146,7 +146,7 @@ if models:
             else:
                 st.error("Failed to set model as active")
 
-    # Display hyperparameters based on model type
+    # Отображаем гиперпараметры в зависимости от типа модели
     st.subheader(f"Configure Hyperparameters for {selected_model_name}")
 
     hyperparameters = {}
@@ -168,11 +168,11 @@ if models:
             max_depth = st.slider("Max Depth (0 for None)", 0, 30, 0)
             hyperparameters["max_depth"] = None if max_depth == 0 else max_depth
 
-    # Add dataset path if available
+    # Добавляем путь к датасету, если доступен
     if dataset_path:
         hyperparameters["data_path"] = dataset_path
 
-    # Train button
+    # Кнопка обучения
     if st.button("Train Model"):
         payload = {"hyperparameters": hyperparameters}
         resp = requests.post(f"{BACKEND_URL}/fit", json=payload)
@@ -185,7 +185,7 @@ if models:
 
 # --- 4. Просмотр информации о моделях и кривых обучения ---
 st.header("4. Models and learning curves")
-# Refresh models list
+# Обновляем список моделей
 models_resp = requests.get(f"{BACKEND_URL}/models")
 if models_resp.ok:
     models = models_resp.json()
@@ -194,7 +194,7 @@ if models_resp.ok:
         selected_model_name = st.selectbox("Select model", list(model_options.keys()), key="view_model")
         selected_model = model_options[selected_model_name]
 
-        # Display model info
+        # Отображаем информацию о модели
         st.subheader("Model Information")
         info_cols = st.columns(3)
         with info_cols[0]:
@@ -206,12 +206,12 @@ if models_resp.ok:
         with info_cols[2]:
             st.write("**Description:**", selected_model["description"])
 
-        # Display metrics if available
+        # Отображаем метрики, если доступны
         if "metrics" in selected_model and selected_model["metrics"]:
             st.subheader("Model Metrics")
             metrics = selected_model["metrics"]
 
-            # Display metrics based on model type
+            # Отображаем метрики в зависимости от типа модели
             if selected_model["type"] == "xgboost":
                 if "train_loss" in metrics and "val_loss" in metrics:
                     cols = st.columns(2)
@@ -228,36 +228,32 @@ if models_resp.ok:
                     with cols[1]:
                         st.metric("Validation Accuracy", f"{metrics['val_accuracy']:.2%}")
 
-            # Display the plot if available
+            # Отображаем график, если доступен
             if "metrics" in selected_model and selected_model["metrics"] and "plot_path" in selected_model["metrics"]:
                 st.subheader("Model Visualization")
 
-                # Try to get interactive Plotly plot
+                # Пытаемся получить интерактивный график Plotly
                 try:
                     plotly_resp = requests.get(f"{BACKEND_URL}/plotly_plots/{selected_model['id']}")
                     if plotly_resp.ok:
-                        # Display interactive Plotly plot
+                        # Отображаем интерактивный график Plotly
                         fig_data = plotly_resp.json()
 
-                        # Create a new figure from the simplified data
+                        # Создаем новую фигуру из данных
                         if 'data' in fig_data:
-                            # Create figure from data and layout
                             fig = go.Figure(data=fig_data['data'], layout=fig_data.get('layout', {}))
                         else:
-                            # Fallback for older format
                             fig = go.Figure(fig_data)
 
-                        # Set a reasonable size to prevent performance issues
                         fig.update_layout(
                             width=800,
                             height=500,
                             autosize=True
                         )
 
-                        # Add timeout to prevent hanging
                         st.plotly_chart(fig, use_container_width=True)
                     else:
-                        # Fall back to static image if Plotly data not available
+                        # Отображаем график картинкой, если нет данных Plotly
                         plot_path = selected_model["metrics"]["plot_path"]
                         plot_resp = requests.get(f"{BACKEND_URL}/plots/{os.path.basename(plot_path)}")
                         if plot_resp.ok:
@@ -265,7 +261,7 @@ if models_resp.ok:
                         else:
                             st.warning("Plot image not available")
                 except Exception as e:
-                    # Fall back to static image if any error occurs
+                    # Отображаем график картинкой, если возникают ошибки
                     st.warning(f"Could not load interactive plot: {str(e)}")
                     plot_path = selected_model["metrics"]["plot_path"]
                     plot_resp = requests.get(f"{BACKEND_URL}/plots/{os.path.basename(plot_path)}")
@@ -274,7 +270,7 @@ if models_resp.ok:
                     else:
                         st.warning("Plot image not available")
 
-        # If no real metrics, show demo learning curve
+        # Если нет реальных метрик, показываем демо-график
         else:
             st.subheader("Demo Learning Curve")
             epochs = list(range(1, 11))
@@ -287,12 +283,12 @@ if models_resp.ok:
 # --- 5. Инференс ---
 st.header("5. Inference")
 
-# Check if we have a dataset to use as reference
+# Проверяем, есть ли датасет
 if 'df' in locals():
     st.info(
         f"Your dataset has {df.shape[1] - 1} features. Make sure to provide the same number of values for prediction.")
 
-# Input method selection
+# Выбор метода ввода
 input_method = st.radio("Select input method", ["Manual Input", "Sample from Dataset"])
 
 if input_method == "Manual Input":
@@ -304,16 +300,16 @@ if input_method == "Manual Input":
         data = None
 else:
     if 'df' in locals():
-        # Select a random sample from the dataset
+        # Выбор рандомной строки из датасета
         if st.button("Get Random Sample"):
             sample_idx = np.random.randint(0, len(df))
-            sample = df.iloc[sample_idx, :-1]  # Exclude the target column
+            sample = df.iloc[sample_idx, :-1]
             st.write("Sample features:")
             st.write(sample)
             st.session_state.sample_data = sample.values.tolist()
             print(f"Sample data: {st.session_state.sample_data}")
 
-        # Use the data from session state if available
+        # Используем данные из session state
         data = st.session_state.sample_data
     else:
         st.warning("No dataset available. Please upload a dataset first.")

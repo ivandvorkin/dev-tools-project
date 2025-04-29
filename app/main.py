@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import *
 from typing import Dict, List, Optional
@@ -20,7 +20,7 @@ import json
 
 app = FastAPI(title="ML Model Management API")
 
-# Create logs directory if it doesn't exist
+# Создаем директорию для логов, если она не существует
 os.makedirs("logs", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 os.makedirs("plots", exist_ok=True)
@@ -55,11 +55,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Use a normal dictionary instead of multiprocessing.Manager to avoid spawn issues
 MODELS: Dict[str, Dict] = {}
 ACTIVE_MODEL_ID: Optional[str] = None
 
-# Model types
+# Типы моделей
 MODEL_TYPES = {
     "xgboost": {
         "name": "XGBoost Classifier",
@@ -78,16 +77,16 @@ MODEL_TYPES = {
 @app.on_event("startup")
 def load_models():
     global MODELS, ACTIVE_MODEL_ID
-    # Create default models
+    # Создаем модели по умолчанию
     for model_type, model_info in MODEL_TYPES.items():
         model_id = str(uuid.uuid4())
         MODELS[model_id] = {
             "id": model_id,
             "name": f"Default {model_info['name']}",
             "description": model_info['description'],
-            "is_active": model_type == "xgboost",  # XGBoost is active by default
+            "is_active": model_type == "xgboost",
             "type": model_type,
-            "object": None,  # Will be initialized when trained
+            "object": None,
             "metrics": {},
             "feature_names": []
         }
@@ -154,28 +153,25 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
         model_type = MODELS[model_id]["type"]
         model_class = MODEL_TYPES[model_type]["class"]
 
-        # Load data if provided
+        # Загружаем данные
         if data_path and os.path.exists(data_path):
             df = pd.read_csv(data_path, sep=None, engine='python')
 
-            # Assume last column is target
+            # Берем последний столбец за целевой показатель
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
 
-            # Transform target variable to start from 0
+            # Нормируем целевой показатель, чтобы значения начинались с нуля
             y = y - y.min()
 
-            # Store feature names for later use in predictions
             feature_names = X.columns.tolist()
 
-            # Split data
             X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-            # Create model with hyperparameters
             if model_type == "xgboost":
                 unique_classes = y.unique()
                 if len(unique_classes) > 2:
-                    # Multi-class scenario
+                    # Для данных с множеством классов
                     chosen_metric = "mlogloss"
                     model = model_class(
                         objective="multi:softprob",
@@ -187,7 +183,7 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                         random_state=42
                     )
                 else:
-                    # Binary classification scenario
+                    # Для бинарной классификации
                     chosen_metric = "logloss"
                     model = model_class(
                         objective="binary:logistic",
@@ -198,7 +194,7 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                         random_state=42
                     )
 
-                # Train with evaluation
+                # Обучение с оценкой
                 eval_set = [(X_train, y_train), (X_val, y_val)]
                 model.fit(
                     X_train, y_train,
@@ -206,10 +202,9 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                     verbose=False
                 )
 
-                # Get evaluation results
                 evals_result = model.evals_result()
 
-                # Create learning curve plot with plotly
+                # Строим график plotly
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
                     y=evals_result['validation_0'][chosen_metric],
@@ -229,11 +224,9 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                     height=500
                 )
 
-                # Save plot as PNG for backward compatibility
                 plot_path = f"plots/{model_id}.png"
                 fig.write_image(plot_path)
 
-                # Save plotly figure as JSON
                 plotly_path = f"plotly_data/{model_id}.json"
                 with open(plotly_path, 'w') as f:
                     f.write(json.dumps(fig.to_dict()))
@@ -253,14 +246,13 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                     random_state=42
                 )
 
-                # Train model
+                # Обучаем модель
                 model.fit(X_train, y_train)
 
-                # Calculate metrics
+                # Расчет метрик
                 train_score = model.score(X_train, y_train)
                 val_score = model.score(X_val, y_val)
 
-                # Create feature importance plot with plotly
                 importances = model.feature_importances_
                 indices = np.argsort(importances)[::-1]
                 feature_names = [X.columns[i] for i in indices]
@@ -294,11 +286,9 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                     height=500
                 )
 
-                # Save plot as PNG for backward compatibility
                 plot_path = f"plots/{model_id}.png"
                 fig.write_image(plot_path)
 
-                # Save plotly figure as JSON
                 plotly_path = f"plotly_data/{model_id}.json"
                 with open(plotly_path, 'w') as f:
                     f.write(json.dumps(fig.to_dict()))
@@ -310,21 +300,19 @@ def fit_model(hyperparameters, model_id, result_dict, data_path=None):
                     "plotly_path": plotly_path
                 }
 
-            # Save model
+            # Сохраняем модель
             model_path = f"models/{model_id}.joblib"
             joblib.dump(model, model_path)
 
-            # Update result
             result_dict["status"] = "success"
             result_dict["message"] = f"Model {model_id} trained successfully"
 
-            # Update model info
             MODELS[model_id]["object"] = model
             MODELS[model_id]["metrics"] = metrics
             MODELS[model_id]["feature_names"] = feature_names
 
         else:
-            # Simulate training if no data provided
+            # Симулякр обучения, если отсутствуют данные
             sleep(2)
             result_dict["status"] = "success"
             result_dict["message"] = f"Model {model_id} training simulated (no data provided)"
@@ -342,10 +330,9 @@ def fit(request: FitRequest):
     if ACTIVE_MODEL_ID is None:
         raise HTTPException(status_code=404, detail="No active model")
 
-    # Check if we have a dataset uploaded
+    # Проверка загрузки датасета
     data_path = request.hyperparameters.get("data_path")
 
-    # Train inline instead of using a new Process
     result_dict = {}
     fit_model(request.hyperparameters, ACTIVE_MODEL_ID, result_dict, data_path)
 
@@ -367,18 +354,14 @@ def predict(request: PredictRequest):
     if model is None:
         logger.warning(f"Prediction attempted with untrained model {ACTIVE_MODEL_ID}")
         raise HTTPException(status_code=400, detail="Model not trained yet. Please train the model first.")
-        return PredictResponse(predictions=request.data)  # Fallback if no model trained
+        return PredictResponse(predictions=request.data)
 
     try:
-        # Convert input to appropriate format
         if isinstance(request.data[0], list):
-            # Multiple samples
             X = np.array(request.data)
         else:
-            # Single sample
             X = np.array([request.data])
 
-        # Make prediction
         predictions = model.predict(X).tolist()
 
         logger.info(f"Prediction made using model {ACTIVE_MODEL_ID}")
@@ -393,10 +376,8 @@ def predict(request: PredictRequest):
 @app.post("/upload_dataset", response_model=UploadResponse)
 async def upload_dataset(file: UploadFile = File(...)):
     try:
-        # Create datasets directory if it doesn't exist
         os.makedirs("datasets", exist_ok=True)
 
-        # Save file
         file_path = f"datasets/{file.filename}"
         with open(file_path, "wb") as f:
             content = await file.read()

@@ -1,47 +1,47 @@
-from typing import List, Optional, Annotated, Dict, Any
+from typing import Annotated, Dict, Any
 from pydantic import BaseModel, Field
 
 class ModelInfo(BaseModel):
-    id: Annotated[str, Field(description="Model ID")]
-    name: Annotated[str, Field(description="Model name")]
-    description: Annotated[str, Field(description="Model description")]
-    is_active: Annotated[bool, Field(description="Is model active")]
-    type: Annotated[str, Field(description="Model type (xgboost or randomforest)")] = "xgboost"
-    metrics: Annotated[Dict[str, Any], Field(description="Model metrics")] = {}
+    id: Annotated[str, Field(description="ID модели")]
+    name: Annotated[str, Field(description="Название модели")]
+    description: Annotated[str, Field(description="Описание модели")]
+    is_active: Annotated[bool, Field(description="Активна ли модель")]
+    type: Annotated[str, Field(description="Тип модели (xgboost или randomforest)")] = "xgboost"
+    metrics: Annotated[Dict[str, Any], Field(description="Метрики модели")] = {}
 
 class FitRequest(BaseModel):
-    hyperparameters: Annotated[dict, Field(description="Hyperparameters for training")]
+    hyperparameters: Annotated[dict, Field(description="Гиперпараметры для обучения")]
 
 class FitResponse(BaseModel):
-    status: Annotated[str, Field(description="Training status")]
-    message: Annotated[str, Field(description="Details")]
+    status: Annotated[str, Field(description="Статус обучения")]
+    message: Annotated[str, Field(description="Детали")]
 
 class PredictRequest(BaseModel):
-    data: Annotated[list, Field(description="Input data for prediction")]
+    data: Annotated[list, Field(description="Входные данные для предсказания")]
 
 class PredictResponse(BaseModel):
-    predictions: Annotated[list, Field(description="Model predictions")]
+    predictions: Annotated[list, Field(description="Предсказания модели")]
 
 class SetModelRequest(BaseModel):
-    id: Annotated[str, Field(description="ID of the model to set active")]
+    id: Annotated[str, Field(description="ID модели, которую нужно сделать активной")]
 
 class ModelCreationRequest(BaseModel):
-    name: Annotated[str, Field(description="Model name")]
-    model_type: Annotated[str, Field(description="Model type (xgboost or randomforest)")]
+    name: Annotated[str, Field(description="Название модели")]
+    model_type: Annotated[str, Field(description="Тип модели (xgboost или randomforest)")]
 
 class ModelCreationResponse(BaseModel):
-    status: Annotated[str, Field(description="Creation status")]
-    message: Annotated[str, Field(description="Details")]
-    model_id: Annotated[str, Field(description="ID of the created model")]
+    status: Annotated[str, Field(description="Статус создания")]
+    message: Annotated[str, Field(description="Детали")]
+    model_id: Annotated[str, Field(description="ID созданной модели")]
 
 class UploadResponse(BaseModel):
-    status: Annotated[str, Field(description="Upload status")]
-    message: Annotated[str, Field(description="Details")]
-    file_path: Annotated[str, Field(description="Path to the uploaded file")]
+    status: Annotated[str, Field(description="Статус загрузки")]
+    message: Annotated[str, Field(description="Детали")]
+    file_path: Annotated[str, Field(description="Путь к загруженному файлу")]
 
 class RetrainRequest(BaseModel):
-    hyperparameters: Annotated[dict, Field(description="Hyperparameters for retraining")]
+    hyperparameters: Annotated[dict, Field(description="Гиперпараметры для переобучения")]
 
 class RetrainResponse(BaseModel):
-    status: Annotated[str, Field(description="Retraining status")]
-    message: Annotated[str, Field(description="Details")]
+    status: Annotated[str, Field(description="Статус переобучения")]
+    message: Annotated[str, Field(description="Детали")]
